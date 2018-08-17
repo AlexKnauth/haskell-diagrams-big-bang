@@ -31,7 +31,7 @@ data Handlers world =
              size :: SizeSpec V2 Double,
              toDraw :: world -> Diagram B,
              onTick :: world -> Maybe world,
-             onMouseClick :: world -> P2 Double -> Maybe world }
+             onMouseClick :: world -> Diagram B -> P2 Double -> Maybe world }
 -- A `Nothing` value from a handler means stop the world.
 
 handlers :: forall world . Handlers world
@@ -50,13 +50,13 @@ bigBang :: forall world . world -> Handlers world -> IO ()
     handlers { BigBang.size = dims2D 400 400,
                toDraw = \x -> square (1.0 / x) `atopBG` square 1 # fc white,
                onTick = \x -> Just (x + 0.1),
-               onMouseClick = \x _ -> Just (x * 0.5) })
+               onMouseClick = \x _ _ -> Just (x * 0.5) })
 
 > (bigBang
     []
     handlers { BigBang.size = dims2D 400 400,
                toDraw = \pts -> mconcat [moveTo p (circle 0.01 # fc black) | p <- pts] `atopBG` square 1 # fc white,
-               onMouseClick = \pts pt -> Just (pt : pts) })
+               onMouseClick = \pts _ pt -> Just (pt : pts) })
 -}
 bigBang start
          handlers
@@ -86,25 +86,26 @@ bigBangPanel start
              f
   =
   do -- draw the start diagram and get the start coordinates
-     (startImg, startCoords) <- diagramToWx size_spec (draw start)
+     let startDia            =  draw start
+     (startImg, startCoords) <- diagramToWx size_spec startDia
      Wx.Size startW startH   <- Wx.imageGetSize startImg
 
      -- variable that will hold the current state of the world
      currentWorld  <- varCreate start
 
-     -- variable that will hold the way to transform coordinates from Wx to Diagram space
-     currentCoords <- varCreate startCoords
+     -- hold the diagram and the way to transform coordinates from Wx to diagram space
+     currentScene  <- varCreate (startDia, startCoords)
 
      -- create a panel to draw in.
      p             <- panel f [layout   := space startW startH,
-                               on paint := paint_world (currentWorld, currentCoords)]
+                               on paint := paint_world (currentWorld, currentScene)]
 
      -- create a timer that updates the world on every tick
      t             <- timer f [interval := 20]
      set t [on command := next_world (currentWorld, p, t)]
 
      -- react on user input
-     set p [on click := handle_wx_click (currentWorld, currentCoords, p, t)]
+     set p [on click := handle_wx_click (currentWorld, currentScene, p, t)]
 
      return p
 
@@ -117,32 +118,34 @@ bigBangPanel start
          Just next -> do varSet currentWorld next
                          repaint p
 
-     paint_world :: (Var world, Var (Wx.Point -> P2 Double)) -> Wx.DC () -> Wx.Rect -> IO ()
-     paint_world (currentWorld, currentCoords) dc rect =
+     paint_world :: (Var world, Var (Diagram B, Wx.Point -> P2 Double)) -> Wx.DC () -> Wx.Rect -> IO ()
+     paint_world (currentWorld, currentScene) dc rect =
        let Wx.Size w h = Wx.rectSize rect
        in
          do world         <- varGet currentWorld
-            (img, coords) <- diagramToWx (Dia.dims2D (fromIntegral w) (fromIntegral h)) (draw world)
+            let dia       =  draw world
+            (img, coords) <- diagramToWx (Dia.dims2D (fromIntegral w) (fromIntegral h)) dia
             Wx.drawImage dc img (Wx.rectTopLeft rect) []
-            varSet currentCoords coords
+            varSet currentScene (dia, coords)
 
      next_world :: (Var world, Wx.Panel (), Wx.Timer) -> IO ()
      next_world (currentWorld, p, t) =
        do world <- varGet currentWorld
           handleResult (currentWorld, p, t) (tick world)
 
-     handle_wx_click (currentWorld, currentCoords, p, t) pt =
-       do world  <- varGet currentWorld
-          coords <- varGet currentCoords
-          handleResult (currentWorld, p, t) (handle_click world (coords pt))
+     handle_wx_click :: (Var world, Var (Diagram B, Wx.Point -> P2 Double), Wx.Panel (), Wx.Timer) -> Wx.Point -> IO ()
+     handle_wx_click (currentWorld, currentScene, p, t) pt =
+       do world         <- varGet currentWorld
+          (dia, coords) <- varGet currentScene
+          handleResult (currentWorld, p, t) (handle_click world dia (coords pt))
 
 -------------------------------------------------------------------------------
 
 -- Default values for the handlers (see type declaration above).
 handlers = Handlers { name = "World",
                       size = absolute,
-                      toDraw = \w -> mempty,
+                      toDraw = \_ -> mempty,
                       onTick = \w -> Just w,
-                      onMouseClick = \w p -> Just w }
+                      onMouseClick = \w _ _ -> Just w }
 
 -------------------------------------------------------------------------------
