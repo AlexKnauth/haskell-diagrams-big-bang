@@ -4,7 +4,7 @@ module BigBang
 
 import qualified Data.Text as Text
 
-import Diagrams.Prelude (Diagram, SizeSpec, V2, P2,
+import Diagrams.Prelude (Diagram, QDiagram, Metric, Monoid', SizeSpec, V2, P2,
                          dims2D, absolute, atop, withEnvelope, ( # ))
 import Diagrams.Backend.Rasterific (Rasterific, B)
 import qualified Diagrams.Prelude as Dia
@@ -32,6 +32,8 @@ data Handlers world =
              toDraw :: world -> Diagram B,
              onTick :: world -> Maybe world,
              onMouseClick :: world -> Diagram B -> P2 Double -> Maybe world }
+-- The `w` type argument is the type that keeps track of the "world state" for
+--   the BigBang window.
 -- A `Nothing` value from a handler means stop the world.
 
 handlers :: forall world . Handlers world
@@ -59,7 +61,7 @@ bigBang :: forall world . world -> Handlers world -> IO ()
                onMouseClick = \pts _ pt -> Just (pt : pts) })
 -}
 bigBang start
-         handlers
+        handlers
   =
   Wx.start
    (do -- create a non-user-resizable top-level frame
@@ -71,6 +73,8 @@ bigBang start
 
 ---------
 
+atopBG :: (Metric v, Floating n, Ord n, Monoid' q) =>
+          QDiagram b v n q -> QDiagram b v n q -> QDiagram b v n q
 atopBG x y =
   (x `atop` y) # withEnvelope y
 

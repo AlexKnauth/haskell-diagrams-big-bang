@@ -24,4 +24,5 @@ cabal.project.local~
 
 # IntelliJ editor files
 .idea/
+out/
 *.iml

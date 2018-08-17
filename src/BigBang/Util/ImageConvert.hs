@@ -13,7 +13,10 @@ import qualified Graphics.UI.WX as Wx
 import qualified Graphics.UI.WXCore as Wx (Image)
 
 
-diagramToWx :: Dia.SizeSpec Dia.V2 Double -> Dia.Diagram Dia.Rasterific -> IO (Wx.Image (), Wx.Point -> Dia.P2 Double)
+diagramToWx :: (Dia.Monoid' q) =>
+               Dia.SizeSpec Dia.V2 Double
+               -> Dia.QDiagram Dia.Rasterific Dia.V2 Double q
+               -> IO (Wx.Image (), Wx.Point -> Dia.P2 Double)
 -- Example values for the `sz` argument:
 --  - `mkWidth 250`
 --  - `dims2D 300 400`

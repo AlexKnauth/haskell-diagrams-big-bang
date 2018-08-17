@@ -92,4 +92,6 @@ library
       PatternSynonyms
       -- for fields like `name` and `size` in the `Handlers` datatype
       DuplicateRecordFields
+      -- for working with polymorphic diagrams like `forall q . (Monoid' q) => QDiagram B V2 Double q`
+      NoMonomorphismRestriction
 
