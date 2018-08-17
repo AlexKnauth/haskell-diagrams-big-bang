@@ -1,4 +1,4 @@
-# haskell-diagrams-big-bang
+# diagrams-big-bang
 
 The `bigBang` function launches a window that keeps track of a "world state" for the window, displays a diagram for the current world state, and updates the world state in response to events like mouse clicks or clock ticks.
 
