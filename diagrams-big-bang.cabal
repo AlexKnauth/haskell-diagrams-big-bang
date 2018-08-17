@@ -32,7 +32,13 @@ author:              AlexKnauth
 maintainer:          alexander@knauth.org
 
 -- A copyright notice.
--- copyright:           
+copyright:           (c) 2018 Alex Knauth
+
+-- The package homepage.
+homepage:            https://github.com/AlexKnauth/haskell-diagrams-big-bang/blob/master/README.md
+
+-- The URL where users should direct bug reports.
+bug-reports:         https://github.com/AlexKnauth/haskell-diagrams-big-bang/issues
 
 category:            Graphics
 
