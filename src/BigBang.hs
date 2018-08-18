@@ -1,5 +1,5 @@
 module BigBang
-  (bigBang, Handlers(..), handlers, atopBG)
+  (bigBang, qBigBang, Handlers, handlers, QHandlers(..), qhandlers, atopBG)
   where
 
 import qualified Data.Text as Text
@@ -26,17 +26,19 @@ import Diagrams.Prelude
 import BigBang
  -}
 
-data Handlers world =
+type Handlers world = QHandlers world Dia.Any
+data QHandlers world q =
   Handlers { name :: Text.Text,
              size :: SizeSpec V2 Double,
-             toDraw :: world -> Diagram B,
+             toDraw :: world -> QDiagram B V2 Double q,
              onTick :: world -> Maybe world,
-             onMouseClick :: world -> Diagram B -> P2 Double -> Maybe world }
+             onMouseClick :: world -> QDiagram B V2 Double q -> P2 Double -> Maybe world }
 -- The `w` type argument is the type that keeps track of the "world state" for
 --   the BigBang window.
 -- A `Nothing` value from a handler means stop the world.
 
 handlers :: forall world . Handlers world
+qhandlers :: forall world q . (Monoid' q) => QHandlers world q
 -- Default values for the handlers.
 -- You can use record extension to fill in the handlers you want
 -- while leaving out the ones you don't need.
@@ -44,6 +46,7 @@ handlers :: forall world . Handlers world
 ---------
 
 bigBang :: forall world . world -> Handlers world -> IO ()
+qBigBang :: forall world q . (Monoid' q) => world -> QHandlers world q -> IO ()
 
 {- Examples:
 > :set +m
@@ -60,14 +63,17 @@ bigBang :: forall world . world -> Handlers world -> IO ()
                toDraw = \pts -> mconcat [moveTo p (circle 0.01 # fc black) | p <- pts] `atopBG` square 1 # fc white,
                onMouseClick = \pts _ pt -> Just (pt : pts) })
 -}
-bigBang start
-        handlers
+
+bigBang = qBigBang
+
+qBigBang start
+         handlers
   =
   Wx.start
    (do -- create a non-user-resizable top-level frame
        f <- frameFixed [Wx.text := Text.unpack (name handlers)]
 
-       p <- bigBangPanel start handlers f
+       p <- qBigBangPanel start handlers f
 
        set f [layout := widget p])
 
@@ -81,13 +87,17 @@ atopBG x y =
 -------------------------------------------------------------------------------
 
 bigBangPanel :: forall world . world -> Handlers world -> Wx.Frame () -> IO (Wx.Panel ())
-bigBangPanel start
-             Handlers { name = _,
-                        size = size_spec,
-                        toDraw = draw,
-                        onTick = tick,
-                        onMouseClick = handle_click }
-             f
+qBigBangPanel :: forall world q . (Monoid' q) => world -> QHandlers world q -> Wx.Frame () -> IO (Wx.Panel ())
+
+bigBangPanel = qBigBangPanel
+
+qBigBangPanel start
+              Handlers { name = _,
+                         size = size_spec,
+                         toDraw = draw,
+                         onTick = tick,
+                         onMouseClick = handle_click }
+              f
   =
   do -- draw the start diagram and get the start coordinates
      let startDia            =  draw start
@@ -122,7 +132,7 @@ bigBangPanel start
          Just next -> do varSet currentWorld next
                          repaint p
 
-     paint_world :: (Var world, Var (Diagram B, Wx.Point -> P2 Double)) -> Wx.DC () -> Wx.Rect -> IO ()
+     paint_world :: (Var world, Var (QDiagram B V2 Double q, Wx.Point -> P2 Double)) -> Wx.DC () -> Wx.Rect -> IO ()
      paint_world (currentWorld, currentScene) dc rect =
        let Wx.Size w h = Wx.rectSize rect
        in
@@ -137,7 +147,7 @@ bigBangPanel start
        do world <- varGet currentWorld
           handleResult (currentWorld, p, t) (tick world)
 
-     handle_wx_click :: (Var world, Var (Diagram B, Wx.Point -> P2 Double), Wx.Panel (), Wx.Timer) -> Wx.Point -> IO ()
+     handle_wx_click :: (Var world, Var (QDiagram B V2 Double q, Wx.Point -> P2 Double), Wx.Panel (), Wx.Timer) -> Wx.Point -> IO ()
      handle_wx_click (currentWorld, currentScene, p, t) pt =
        do world         <- varGet currentWorld
           (dia, coords) <- varGet currentScene
@@ -146,10 +156,11 @@ bigBangPanel start
 -------------------------------------------------------------------------------
 
 -- Default values for the handlers (see type declaration above).
-handlers = Handlers { name = "World",
-                      size = absolute,
-                      toDraw = \_ -> mempty,
-                      onTick = \w -> Just w,
-                      onMouseClick = \w _ _ -> Just w }
+handlers = qhandlers
+qhandlers = Handlers { name = "World",
+                       size = absolute,
+                       toDraw = \_ -> mempty,
+                       onTick = \w -> Just w,
+                       onMouseClick = \w _ _ -> Just w }
 
 -------------------------------------------------------------------------------
